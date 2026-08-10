@@ -6,10 +6,10 @@
   "license": "MIT",
   "author": "Normix contributors",
   "main": "electron/main.mjs",
-  "homepage": "https://github.com/Normix/normix#readme",
+  "homepage": "https://github.com/congrongdesign/normix#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Normix/normix.git"
+    "url": "git+https://github.com/congrongdesign/normix.git"
   },
   "type": "module",
   "scripts": {

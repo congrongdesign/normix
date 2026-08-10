@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPO="Normix/normix"
+REPO="congrongdesign/normix"
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "GitHub CLI is not installed."
