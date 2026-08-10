@@ -27,12 +27,24 @@ export GIT_ASKPASS="$ROOT_DIR/scripts/git-askpass.sh"
 export GIT_TERMINAL_PROMPT=0
 
 if ! gh repo view "$REPO" >/dev/null 2>&1; then
-  gh repo create "$REPO" --public --source . --remote origin --push
-else
-  git push -u origin main --tags
+  if ! gh repo create "$REPO" --public --source . --remote origin; then
+    if ! gh repo view "$REPO" >/dev/null 2>&1; then
+      echo "Repository creation failed."
+      exit 1
+    fi
+  fi
 fi
 
-git push origin --tags
+push_with_fallback() {
+  echo "Pushing main and tags..."
+  if git -c http.version=HTTP/1.1 push origin main --tags; then
+    return 0
+  fi
+  echo "Direct push failed; retrying through gh-proxy.com..."
+  git -c http.version=HTTP/1.1 push "https://gh-proxy.com/https://github.com/${REPO}.git" main --tags
+}
+
+push_with_fallback
 
 if ! gh release view v1.0.0 >/dev/null 2>&1; then
   gh release create v1.0.0 $(find release -maxdepth 1 -type f ! -name ".DS_Store" ! -name "builder-debug.yml" ! -name "*.blockmap") --generate-notes
