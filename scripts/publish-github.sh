@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO="congrongdesign/normix"
+VERSION="$(node -p "require('./package.json').version")"
+RELEASE_TAG="v${VERSION}"
 
 if [[ -z "${GH_TOKEN:-}" && -z "${GITHUB_TOKEN:-}" ]]; then
   export GH_TOKEN="$(security find-generic-password -s normix-github -a congrongdesign -w 2>/dev/null || true)"
@@ -48,9 +50,9 @@ push_with_fallback() {
 
 push_with_fallback
 
-if ! gh release view v1.0.0 >/dev/null 2>&1; then
-  gh release create v1.0.0 $(find release -maxdepth 1 -type f ! -name ".DS_Store" ! -name "builder-debug.yml" ! -name "*.blockmap") --generate-notes
-  echo "Release v1.0.0 created."
+if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+  gh release create "$RELEASE_TAG" $(find release -maxdepth 1 -type f ! -name ".DS_Store" ! -name "builder-debug.yml" ! -name "*.blockmap") --generate-notes
+  echo "Release $RELEASE_TAG created."
 else
-  echo "Release v1.0.0 already exists."
+  echo "Release $RELEASE_TAG already exists."
 fi

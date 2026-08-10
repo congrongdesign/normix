@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.1] - 2026-08-10
+
+### Fixed
+
+- 修正安装包品牌图标，改为软件界面实际使用的 Normix logo
+- 补齐 GitHub README 下载说明和界面截图
+- 发布脚本支持根据 `package.json` 版本自动创建 Release
+- 发布脚本增加直连失败时的代理回退
+
 ## [Unreleased]
 
 ### Added
