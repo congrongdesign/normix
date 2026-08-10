@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO="congrongdesign/normix"
 
+if [[ -z "${GH_TOKEN:-}" && -z "${GITHUB_TOKEN:-}" ]]; then
+  export GH_TOKEN="$(security find-generic-password -s normix-github -a congrongdesign -w 2>/dev/null || true)"
+fi
+
 if ! command -v gh >/dev/null 2>&1; then
   echo "GitHub CLI is not installed."
   echo "Install it with: brew install gh"
@@ -18,6 +22,9 @@ gh auth status >/dev/null 2>&1 || {
 }
 
 cd "$ROOT_DIR"
+
+export GIT_ASKPASS="$ROOT_DIR/scripts/git-askpass.sh"
+export GIT_TERMINAL_PROMPT=0
 
 if ! gh repo view "$REPO" >/dev/null 2>&1; then
   gh repo create "$REPO" --public --source . --remote origin --push
