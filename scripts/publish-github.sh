@@ -25,6 +25,8 @@ cd "$ROOT_DIR"
 
 export GIT_ASKPASS="$ROOT_DIR/scripts/git-askpass.sh"
 export GIT_TERMINAL_PROMPT=0
+export GIT_HTTP_LOW_SPEED_LIMIT=1000
+export GIT_HTTP_LOW_SPEED_TIME=10
 
 if ! gh repo view "$REPO" >/dev/null 2>&1; then
   if ! gh repo create "$REPO" --public --source . --remote origin; then
