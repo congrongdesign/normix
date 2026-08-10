@@ -63,11 +63,15 @@ Apple Silicon 用户下载：
 Normix-1.0.1-mac-arm64.dmg
 ```
 
+直接下载：[Normix-1.0.1-mac-arm64.dmg](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.1-mac-arm64.dmg)
+
 Intel Mac 用户下载：
 
 ```text
 Normix-1.0.1-mac-x64.dmg
 ```
+
+直接下载：[Normix-1.0.1-mac-x64.dmg](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.1-mac-x64.dmg)
 
 安装包未做 Apple 开发者签名，首次打开时请在 Finder 中右键应用，选择“打开”；如仍被阻止，可前往“系统设置 > 隐私与安全性”点击“仍要打开”。
 
@@ -79,11 +83,15 @@ Normix-1.0.1-mac-x64.dmg
 Normix-1.0.1-win-x64-setup.exe
 ```
 
+直接下载：[Normix-1.0.1-win-x64-setup.exe](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.1-win-x64-setup.exe)
+
 或下载免安装便携版：
 
 ```text
 Normix-1.0.1-win-x64-portable.exe
 ```
+
+直接下载：[Normix-1.0.1-win-x64-portable.exe](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.1-win-x64-portable.exe)
 
 如果出现 SmartScreen 提示，请选择“更多信息 > 仍要运行”。安装版支持自定义安装目录，并可创建桌面和开始菜单快捷方式。
 
