@@ -27,6 +27,7 @@
     "package:win": "npm run build && electron-builder --win",
     "start": "node server.mjs",
     "migrate": "node scripts/migrate-state.mjs",
+    "migrate:desktop": "node scripts/migrate-desktop-data.mjs",
     "variants": "node scripts/sync-variants.mjs",
     "smoke": "node scripts/smoke-test.mjs",
     "smoke:ci": "node scripts/run-smoke.mjs",

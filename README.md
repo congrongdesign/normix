@@ -80,6 +80,14 @@ npm run package:mac
 
 开发模式数据位于当前项目的 `data/` 和 `storage/`，这些目录默认不进入 Git。
 
+从开发模式迁移到桌面版：
+
+```bash
+npm run migrate:desktop
+```
+
+该命令会把现有 `data/` 和 `storage/` 复制到桌面版数据目录，不会覆盖已有桌面数据。
+
 ## 技术栈
 
 - React
