@@ -95,6 +95,19 @@ Normix-1.0.1-win-x64-portable.exe
 
 如果出现 SmartScreen 提示，请选择“更多信息 > 仍要运行”。安装版支持自定义安装目录，并可创建桌面和开始菜单快捷方式。
 
+### macOS 提示“已损坏，无法打开”
+
+当前 macOS 安装包未做 Apple Developer 签名，因此从 Chrome 或其他浏览器下载后，系统可能提示“Normix 已损坏，无法打开”。这是 Gatekeeper 隔离标记导致的，不是安装包损坏。
+
+先右键 `Normix.app`，选择“打开”，再点击一次“打开”。如果仍然报错，打开“终端”执行：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Normix.app"
+open "/Applications/Normix.app"
+```
+
+如果应用安装在其他位置，把命令中的 `/Applications/Normix.app` 替换为实际路径即可。
+
 ### 校验文件完整性
 
 下载 [SHA256SUMS.txt](https://github.com/congrongdesign/normix/releases/latest/download/SHA256SUMS.txt) 后，在下载目录执行：
