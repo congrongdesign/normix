@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: normix
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: node server.mjs
+    disk:
+      name: normix-data
+      mountPath: /opt/render/project/src/persistent
+      sizeGB: 10
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DATA_DIR
+        value: /opt/render/project/src/persistent/data
+      - key: STORAGE_DIR
+        value: /opt/render/project/src/persistent/storage

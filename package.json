@@ -1,0 +1,70 @@
+{
+  "name": "normix",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Normix PPT 灵感集管理平台",
+  "license": "MIT",
+  "author": "Normix contributors",
+  "main": "electron/main.mjs",
+  "homepage": "https://github.com/Normix/normix#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Normix/normix.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"vite --host 0.0.0.0\" \"node server.mjs\"",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "dev:server": "node server.mjs",
+    "desktop:dev": "npm run build && electron .",
+    "desktop:server": "NORMIX_DESKTOP=1 HOST=127.0.0.1 PORT=0 node server.mjs",
+    "package": "npm run build && electron-builder",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:win": "npm run build && electron-builder --win",
+    "start": "node server.mjs",
+    "migrate": "node scripts/migrate-state.mjs",
+    "variants": "node scripts/sync-variants.mjs",
+    "smoke": "node scripts/smoke-test.mjs",
+    "smoke:ci": "node scripts/run-smoke.mjs",
+    "acceptance": "node scripts/acceptance-check.mjs",
+    "perf": "node scripts/perf-test.mjs",
+    "repair:pages": "node scripts/repair-page-order.mjs",
+    "repair:tags": "node scripts/apply-cover-tags.mjs",
+    "repair:pptx": "node scripts/repair-pptx-pages.mjs",
+    "recover:orphans": "node scripts/recover-orphans.mjs",
+    "deploy:package": "node scripts/build-deploy.mjs"
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.14.9",
+    "concurrently": "^10.0.4",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "gsap": "^3.15.0",
+    "jszip": "^3.10.1",
+    "lucide-react": "^1.28.0",
+    "multer": "^2.2.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.2.108",
+    "pptxgenjs": "^4.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "sharp": "^0.35.3",
+    "swiper": "^14.1.0"
+  },
+  "devDependencies": {
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "oxlint": "^1.75.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0"
+  },
+  "overrides": {
+    "image-size": "2.0.2"
+  }
+}
