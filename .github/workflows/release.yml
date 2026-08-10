@@ -10,7 +10,14 @@ permissions:
 
 jobs:
   build-mac:
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - os: macos-13
+            arch: x64
+          - os: macos-latest
+            arch: arm64
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,10 +26,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx electron-builder --mac --publish never
+      - run: npx electron-builder --mac --${{ matrix.arch }} --publish never
       - uses: actions/upload-artifact@v4
         with:
-          name: mac-release
+          name: mac-release-${{ matrix.arch }}
           path: release/*
 
   build-win:
