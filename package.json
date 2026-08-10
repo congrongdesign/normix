@@ -37,6 +37,7 @@
     "repair:tags": "node scripts/apply-cover-tags.mjs",
     "repair:pptx": "node scripts/repair-pptx-pages.mjs",
     "recover:orphans": "node scripts/recover-orphans.mjs",
+    "publish:github": "bash scripts/publish-github.sh",
     "deploy:package": "node scripts/build-deploy.mjs"
   },
   "dependencies": {

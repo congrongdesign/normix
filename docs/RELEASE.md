@@ -50,3 +50,20 @@ The workflow builds:
 - Windows x64 NSIS installer
 - Windows x64 portable executable
 - Source archive and checksums
+
+## Local GitHub publish
+
+Install and authenticate GitHub CLI first:
+
+```bash
+brew install gh
+gh auth login
+```
+
+Then run:
+
+```bash
+npm run publish:github
+```
+
+This creates the public repository, pushes `main` and the `v1.0.0` tag, and uploads the existing `release/` artifacts to a GitHub Release.
