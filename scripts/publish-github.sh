@@ -28,7 +28,7 @@ fi
 git push origin --tags
 
 if ! gh release view v1.0.0 >/dev/null 2>&1; then
-  gh release create v1.0.0 $(find release -type f ! -name "SHA256SUMS.txt" ! -name "*.blockmap") --generate-notes
+  gh release create v1.0.0 $(find release -maxdepth 1 -type f ! -name ".DS_Store" ! -name "builder-debug.yml" ! -name "*.blockmap") --generate-notes
   echo "Release v1.0.0 created."
 else
   echo "Release v1.0.0 already exists."
