@@ -39,6 +39,7 @@
     "deploy:package": "node scripts/build-deploy.mjs"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.5",
     "@tanstack/react-virtual": "^3.14.9",
     "concurrently": "^10.0.4",
     "cors": "^2.8.6",
@@ -56,12 +57,12 @@
     "swiper": "^14.1.0"
   },
   "devDependencies": {
-    "electron": "^43.3.0",
-    "electron-builder": "^26.15.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3",
     "oxlint": "^1.75.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.0"

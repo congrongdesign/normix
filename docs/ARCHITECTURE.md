@@ -20,6 +20,7 @@
 ## Main modules
 
 - `server.mjs`: Express API, SQLite schema, upload processing, page generation
+- `lib/pdf-render.mjs`: PDF.js fallback renderer for packaged desktop builds
 - `lib/pptx-pages.mjs`: PPTX slide extraction and animation compositing
 - `src/App.tsx`: React UI
 - `electron/main.mjs`: Electron desktop shell

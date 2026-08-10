@@ -6,6 +6,7 @@ Normix 是一个开源的 PPT 灵感集管理平台，支持上传 PDF、图片�
 
 - 上传 PDF / 图片集 PPT / ZIP / PNG / JPG / WEBP / GIF
 - 自动将 PDF 和 PPTX 处理为页面图集
+- PDF 优先使用系统 Poppler，缺失时自动使用 PDF.js 渲染
 - 标签管理、文件夹整理、回收站
 - 页面预览、复制、导出
 - 动画 GIF 单次播放，避免循环闪烁
@@ -88,7 +89,9 @@ npm run package:mac
 - Electron
 - Sharp
 - JSZip
-- pdfjs-dist / Poppler
+- pdfjs-dist
+- @napi-rs/canvas
+- Poppler（可选系统加速）
 
 ## 开源协议
 

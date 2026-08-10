@@ -21,6 +21,7 @@ const startServer = () => new Promise((resolve, reject) => {
       HOST: '127.0.0.1',
       DATA_DIR: path.join(tmpDir, 'data'),
       STORAGE_DIR: path.join(tmpDir, 'storage'),
+      PATH: process.platform === 'win32' ? 'C:\\nonexistent' : '/nonexistent',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })

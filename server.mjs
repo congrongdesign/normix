@@ -4,6 +4,7 @@ import multer from 'multer'
 import sharp from 'sharp'
 import JSZip from 'jszip'
 import { getPptxSlidePaths, getPptxSlideSize, getPptxSlideLayers, compositePptxLayers } from './lib/pptx-pages.mjs'
+import { getPdfPageCountJs, renderPdfRangeJs } from './lib/pdf-render.mjs'
 import { DatabaseSync } from 'node:sqlite'
 import { execFile as execFileAsync } from 'node:child_process'
 import fs from 'node:fs'
@@ -1947,7 +1948,7 @@ const getPdfPageCount = (filePath) =>
       const match = String(stdout).match(/^Pages:\s+(\d+)/m)
       resolve(match ? Number(match[1]) : 0)
     })
-  })
+  }).catch(() => getPdfPageCountJs(filePath))
 
 const renderPdfRange = (uploadPath, prefix, start, end) =>
   new Promise((resolve, reject) => {
@@ -1966,7 +1967,7 @@ const renderPdfRange = (uploadPath, prefix, start, end) =>
       if (error) reject(new Error(stderr || error.message))
       else resolve()
     })
-  })
+  }).catch(() => renderPdfRangeJs(uploadPath, prefix, start, end))
 
 const processUploadedFile = async (workId, uploadPath, fileName, kind, taskId) => {
   ensureUploadNotCancelled(taskId)

@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+import { PDFDocument, StandardFonts } from 'pdf-lib'
 import sharp from 'sharp'
 
 const base = process.env.API_BASE ?? 'http://localhost:4000'
@@ -80,6 +81,24 @@ await json(`/api/pages/${uploadedPageId}/rate`, {
 const savedPage = await json(`/api/pages/${uploadedPageId}`)
 if (!savedPage.tags?.includes('smoke') || savedPage.rating !== 5) throw new Error('tag/rate persistence failed')
 await removeWork(upload.workId)
+
+const pdfDoc = await PDFDocument.create()
+const pdfFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
+const pdfPage = pdfDoc.addPage([600, 400])
+pdfPage.drawText('Normix smoke pdf', { x: 40, y: 200, size: 32, font: pdfFont })
+const pdfBytes = await pdfDoc.save()
+const pdfForm = new FormData()
+pdfForm.append('file', new Blob([pdfBytes], { type: 'application/pdf' }), 'smoke.pdf')
+const pdfUpload = await json('/api/uploads', { method: 'POST', body: pdfForm })
+let pdfTask = await json(`/api/tasks/${pdfUpload.taskId}`)
+for (let i = 0; i < 40 && pdfTask.status === 'processing'; i += 1) {
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  pdfTask = await json(`/api/tasks/${pdfUpload.taskId}`)
+}
+if (pdfTask.status !== 'done') throw new Error(`pdf task failed: ${pdfTask.status}`)
+const pdfWork = await json(`/api/works/${pdfUpload.workId}`)
+if (!pdfWork.pages?.length) throw new Error('pdf upload produced no pages')
+await removeWork(pdfUpload.workId)
 
 const trashForm = new FormData()
 trashForm.append('file', new Blob([png], { type: 'image/png' }), 'trash-smoke.png')
