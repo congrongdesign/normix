@@ -22,6 +22,8 @@ macOS:
 
 ```bash
 npm run package:mac
+npm run package:mac:arm64
+npm run package:mac:x64
 ```
 
 Windows:

@@ -22,6 +22,8 @@
     "desktop:server": "NORMIX_DESKTOP=1 HOST=127.0.0.1 PORT=0 node server.mjs",
     "package": "npm run build && electron-builder",
     "package:mac": "npm run build && electron-builder --mac",
+    "package:mac:arm64": "npm run build && electron-builder --mac --arm64",
+    "package:mac:x64": "npm run build && electron-builder --mac --x64",
     "package:win": "npm run build && electron-builder --win",
     "start": "node server.mjs",
     "migrate": "node scripts/migrate-state.mjs",

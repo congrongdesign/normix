@@ -58,6 +58,8 @@ npm run desktop:dev
 ```bash
 npm run package:mac
 npm run package:win
+npm run package:mac:arm64
+npm run package:mac:x64
 ```
 
 如果下载 Electron 或 DMG 工具超时，可以使用国内镜像：
