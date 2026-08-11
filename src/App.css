@@ -1479,6 +1479,7 @@ p {
 .page-tile {
   position: relative;
   min-width: 0;
+  touch-action: none;
   content-visibility: auto;
   contain-intrinsic-size: 260px 180px;
   overflow: hidden;

@@ -983,9 +983,14 @@ const pageTagIds = (pageId) => {
   return rows.map((row) => row.tag_id)
 }
 
-const getOrCreateTagId = (name, group = '自定义', scope = 'work') => {
+const findTagId = (name, scope) => {
   const existing = db.prepare('SELECT id FROM tags WHERE name = ? AND scope = ?').get(name, scope)
-  if (existing) return existing.id
+  return existing?.id ?? null
+}
+
+const getOrCreateTagId = (name, group = '自定义', scope = 'work') => {
+  const existingId = findTagId(name, scope)
+  if (existingId) return existingId
   const tagId = `t-${randomUUID()}`
   db.prepare('INSERT INTO tags (id, name, tag_group, scope) VALUES (?, ?, ?, ?)').run(tagId, name, group, scope)
   return tagId
@@ -1246,6 +1251,7 @@ app.post('/api/works/:id/tags', (req, res) => {
   const name = String(req.body.tag ?? '').trim()
   const insert = db.prepare('INSERT OR IGNORE INTO work_tags (work_id, tag_id) VALUES (?, ?)')
   const finalTagIds = new Set()
+  let missingTag = false
   for (const id of tagIds) {
     const tag = db.prepare(`SELECT id FROM tags WHERE id = ? AND scope = 'work'`).get(id)
     if (tag) {
@@ -1261,13 +1267,17 @@ app.post('/api/works/:id/tags', (req, res) => {
     }
   }
   if (name) {
-    const createdId = getOrCreateTagId(name, '自定义', 'work')
-    insert.run(work.id, createdId)
-    finalTagIds.add(createdId)
+    const existingId = findTagId(name, 'work')
+    if (existingId) {
+      insert.run(work.id, existingId)
+      finalTagIds.add(existingId)
+    } else {
+      missingTag = true
+    }
   }
   const existing = workTagIds(work.id)
   existing.forEach((id) => finalTagIds.add(id))
-  res.json({ tags: workTags(work.id), tagIds: Array.from(finalTagIds) })
+  res.json({ tags: workTags(work.id), tagIds: Array.from(finalTagIds), missingTag })
 })
 
 app.delete('/api/works/:id/tags/:tagName', (req, res) => {
@@ -1753,6 +1763,7 @@ app.post('/api/pages/:id/tags', (req, res) => {
   const name = String(req.body.tag ?? '').trim()
   const insert = db.prepare('INSERT OR IGNORE INTO page_tags (page_id, tag_id) VALUES (?, ?)')
   const finalTagIds = new Set()
+  let missingTag = false
   for (const id of tagIds) {
     const tag = db.prepare(`SELECT id FROM tags WHERE id = ? AND scope = 'page'`).get(id)
     if (tag) {
@@ -1768,13 +1779,17 @@ app.post('/api/pages/:id/tags', (req, res) => {
     }
   }
   if (name) {
-    const createdId = getOrCreateTagId(name, '页面', 'page')
-    insert.run(page.id, createdId)
-    finalTagIds.add(createdId)
+    const existingId = findTagId(name, 'page')
+    if (existingId) {
+      insert.run(page.id, existingId)
+      finalTagIds.add(existingId)
+    } else {
+      missingTag = true
+    }
   }
   const existing = pageTagIds(page.id)
   existing.forEach((id) => finalTagIds.add(id))
-  res.json({ tags: pageTags(page.id), tagIds: Array.from(finalTagIds) })
+  res.json({ tags: pageTags(page.id), tagIds: Array.from(finalTagIds), missingTag })
 })
 
 app.delete('/api/pages/:id/tags/:tagName', (req, res) => {

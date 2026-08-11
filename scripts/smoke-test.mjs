@@ -68,6 +68,11 @@ if (task.progress !== 100) throw new Error(`upload task did not reach 100%: ${ta
 const uploadedWork = await json(`/api/works/${upload.workId}`)
 const uploadedPageId = uploadedWork.pages[0]?.id
 if (!uploadedPageId) throw new Error('uploaded work has no page')
+await json('/api/tags', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'smoke', group: '页面', scope: 'page' }),
+})
 await json(`/api/pages/${uploadedPageId}/tags`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
@@ -149,6 +154,11 @@ if (!pageTags[0]?.includes('封面') || !pageTags[pageTags.length - 1]?.includes
 if ((pptxWork.tags ?? []).some((tag) => ['封面', '封底'].includes(tag))) {
   throw new Error(`work tags leaked page tags: ${JSON.stringify(pptxWork.tags ?? [])}`)
 }
+await json('/api/tags', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'smoke-work', group: '自定义', scope: 'work' }),
+})
 await json(`/api/works/${pptxUpload.workId}/tags`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },

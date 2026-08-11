@@ -12,8 +12,10 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   CheckCircle2,
   CalendarDays,
+  ArrowLeft,
   ChevronsLeft,
   ChevronsRight,
+  ChevronLeft,
   ChevronDown,
   ChevronRight,
   Copy,
@@ -1553,6 +1555,7 @@ function App() {
     () => localStorage.getItem('normix-sidebar-collapsed') === '1',
   )
   const [collectionsFolderRequest, setCollectionsFolderRequest] = useState('')
+  const [libraryReturnState, setLibraryReturnState] = useState<{ selectedWorkIds: string[]; scrollTop: number } | null>(null)
   const [works, setWorks] = useState<Work[]>(initialWorks)
   const [collections, setCollections] = useState<Collection[]>(initialCollections)
   const [selectedWorkId, setSelectedWorkId] = useState('')
@@ -2574,13 +2577,14 @@ function App() {
   }
 
   const tagPages = (pageIds: string[], tag: string) => {
-    if (pageIds.length === 0 || !tag) return
+    const cleanTag = tag.trim()
+    if (pageIds.length === 0 || !cleanTag) return
 
     setWorks((current) =>
       current.map((work) => ({
         ...work,
         pages: work.pages.map((page) =>
-          pageIds.includes(page.id) && !page.tags.includes(tag) ? { ...page, tags: [tag, ...page.tags] } : page,
+          pageIds.includes(page.id) && !page.tags.includes(cleanTag) ? { ...page, tags: [cleanTag, ...page.tags] } : page,
         ),
       })),
     )
@@ -2588,11 +2592,23 @@ function App() {
       void fetch(`/api/pages/${pageId}/tags`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tag }),
+        body: JSON.stringify({ tag: cleanTag }),
       }).then(async (response) => {
         if (!response.ok) return
-        const data = await response.json().catch(() => null) as { tags?: string[]; tagIds?: string[] } | null
+        const data = await response.json().catch(() => null) as { tags?: string[]; tagIds?: string[]; missingTag?: boolean } | null
         if (!data) return
+        if (data.missingTag) {
+          setWorks((current) =>
+            current.map((work) => ({
+              ...work,
+              pages: work.pages.map((page) =>
+                page.id === pageId ? { ...page, tags: page.tags.filter((item) => item !== cleanTag) } : page,
+              ),
+            })),
+          )
+          setNotice(`标签“${cleanTag}”不在标签系统中，未同步`)
+          return
+        }
         setWorks((current) =>
           current.map((work) => ({
             ...work,
@@ -2603,7 +2619,7 @@ function App() {
         )
       })
     })
-    setNotice(`已给 ${pageIds.length} 页添加标签：${tag}`)
+    setNotice(`已给 ${pageIds.length} 页添加标签：${cleanTag}`)
   }
 
   const untagPages = (pageIds: string[], tag: string) => {
@@ -2698,8 +2714,17 @@ function App() {
       body: JSON.stringify({ tag: cleanTag }),
     }).then(async (response) => {
       if (!response.ok) return
-      const data = await response.json().catch(() => null) as { tags?: string[]; tagIds?: string[] } | null
+      const data = await response.json().catch(() => null) as { tags?: string[]; tagIds?: string[]; missingTag?: boolean } | null
       if (!data) return
+      if (data.missingTag) {
+        setWorks((current) =>
+          current.map((work) =>
+            work.id === workId ? { ...work, tags: work.tags.filter((item) => item !== cleanTag) } : work,
+          ),
+        )
+        setNotice(`标签“${cleanTag}”不在标签系统中，未同步`)
+        return
+      }
       setWorks((current) =>
         current.map((work) =>
           work.id === workId ? { ...work, tags: data.tags ?? work.tags, tagIds: data.tagIds ?? work.tagIds } : work,
@@ -2862,6 +2887,10 @@ function App() {
           }}
           onCollectionsChange={handleCollectionsChange}
           onImportToFolder={importFilesToFolder}
+          onBack={() => {
+            setCollectionsFolderRequest('')
+            setActiveView('library')
+          }}
         />
       )
     }
@@ -2872,9 +2901,13 @@ function App() {
         collections={collections}
         tagTree={tagTree}
         initialTagRequest={tagResourceRequest?.scope === 'work' ? { ...tagResourceRequest, scope: 'work' as const } : null}
+        initialSelectedWorkIds={libraryReturnState?.selectedWorkIds}
+        initialScrollTop={libraryReturnState?.scrollTop}
+        onInitialStateConsumed={() => setLibraryReturnState(null)}
         onImport={() => fileInputRef.current?.click()}
         onCollectionsChange={handleCollectionsChange}
-        openWork={(workId) => {
+        openWork={(workId, snapshot) => {
+          setLibraryReturnState(snapshot ?? { selectedWorkIds: [workId], scrollTop: 0 })
           setCollectionsFolderRequest(`work:${workId}`)
           setActiveView('collections')
         }}
@@ -4179,13 +4212,12 @@ function TagManagementPanel({
   onChanged: () => void
   onViewResources?: (scope: 'work' | 'page', tagId: string, tagName: string) => void
 }) {
-  const [tab, setTab] = useState<'work' | 'page'>('work')
+  const [tab, setTab] = useState<'work' | 'page'>('page')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [localTags, setLocalTags] = useState<TagNode[]>(tags)
   const [renamingId, setRenamingId] = useState('')
   const [renameValue, setRenameValue] = useState('')
   const [newName, setNewName] = useState('')
-  const [newLeafName, setNewLeafName] = useState('')
   const [inlineCreate, setInlineCreate] = useState<{ parentId: string; kind: 'group' | 'tag' } | null>(null)
   const [inlineCreateValue, setInlineCreateValue] = useState('')
   const [search, setSearch] = useState('')
@@ -4461,30 +4493,6 @@ function TagManagementPanel({
     onChanged()
   }
 
-  const createTag = async (parentId: string | null = null) => {
-    const name = newLeafName.trim() || '新标签'
-    const response = await request('/api/tags', {
-      method: 'POST',
-      body: JSON.stringify({
-        name,
-        group: tab === 'page' ? '页面' : '自定义',
-        scope: tab,
-        parentId,
-        color: '#18181b',
-      }),
-    })
-    const created = (await response.json()) as TagNode
-    setNewLeafName('')
-    setSearch('')
-    setLocalTags((current) =>
-      parentId
-        ? insertTagIntoTree(current, parentId, { ...created, children: [] })
-        : [...current, { ...created, children: [] }],
-    )
-    if (parentId) setExpanded((current) => new Set([...current, parentId]))
-    onChanged()
-  }
-
   const submitInlineCreate = async () => {
     if (!inlineCreate) return
     const name = inlineCreateValue.trim() || (inlineCreate.kind === 'group' ? '新分组' : '新标签')
@@ -4685,11 +4693,11 @@ function TagManagementPanel({
     >
       <div className="tag-manager-toolbar">
         <div className="tag-manager-tabs">
-          <button className={tab === 'work' ? 'active' : ''} onClick={() => setTab('work')} type="button">
-            作品分类标签 <b>{leafCounts.work}</b>
-          </button>
           <button className={tab === 'page' ? 'active' : ''} onClick={() => setTab('page')} type="button">
             图片标签 <b>{leafCounts.page}</b>
+          </button>
+          <button className={tab === 'work' ? 'active' : ''} onClick={() => setTab('work')} type="button">
+            作品分类标签 <b>{leafCounts.work}</b>
           </button>
         </div>
         <div className="tag-manager-search">
@@ -4739,15 +4747,6 @@ function TagManagementPanel({
                   type="button"
                 >
                   新建分组
-                </button>
-                <button
-                  onClick={() => {
-                    void createTag()
-                    setTagContextMenu(null)
-                  }}
-                  type="button"
-                >
-                  新建标签
                 </button>
               </>
             )}
@@ -5377,6 +5376,9 @@ function LibraryView({
   collections,
   tagTree,
   initialTagRequest,
+  initialSelectedWorkIds,
+  initialScrollTop,
+  onInitialStateConsumed,
   onImport,
   onCollectionsChange,
   openWork,
@@ -5392,9 +5394,12 @@ function LibraryView({
   collections: Collection[]
   tagTree: TagNode[]
   initialTagRequest?: { scope: 'work'; tagId: string; tagName: string } | null
+  initialSelectedWorkIds?: string[]
+  initialScrollTop?: number
+  onInitialStateConsumed?: () => void
   onImport: () => void
   onCollectionsChange: (next: Collection[]) => void
-  openWork: (workId: string) => void
+  openWork: (workId: string, snapshot?: { selectedWorkIds: string[]; scrollTop: number }) => void
   deleteWork: (workId: string) => void
   deleteWorks: (workIds: string[]) => void
   tagWork: (workId: string, tag: string) => void
@@ -5424,9 +5429,25 @@ function LibraryView({
   const [workContextMenu, setWorkContextMenu] = useState<{ x: number; y: number; mode: 'main' | 'tag' | 'folder' | 'rating' } | null>(null)
   const [exportFormatWork, setExportFormatWork] = useState<Work | null>(null)
   const lastSelectedWorkIdRef = useRef<string | null>(null)
-  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [inspectorOpen, setInspectorOpen] = useState(true)
   const [inspectorWidth, setInspectorWidth] = useState(defaultInspectorWidth)
   const libraryContentRef = useRef<HTMLDivElement>(null)
+  const workGridRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (initialSelectedWorkIds?.length) {
+      const ids = new Set(initialSelectedWorkIds)
+      setSelectedWorkIds(ids)
+      lastSelectedWorkIdRef.current = initialSelectedWorkIds[initialSelectedWorkIds.length - 1] ?? null
+    }
+    const frame = requestAnimationFrame(() => {
+      if (initialScrollTop && workGridRef.current) {
+        workGridRef.current.scrollTo({ top: initialScrollTop })
+      }
+    })
+    onInitialStateConsumed?.()
+    return () => cancelAnimationFrame(frame)
+  }, [])
 
   useEffect(() => {
     document.documentElement.style.setProperty('--inspector-width', `${inspectorWidth}px`)
@@ -5775,6 +5796,7 @@ function LibraryView({
           />
 
           <div
+            ref={workGridRef}
             className="work-grid library-grid"
             onMouseDown={(event) => {
               if (!(event.target as HTMLElement).closest('.work-card')) {
@@ -5797,7 +5819,10 @@ function LibraryView({
                 onSelect={(event) => toggleSelect(event, work.id)}
                 onContextMenu={(event) => openWorkContextMenu(event, work)}
                 onToggleFavorite={toggleFavorite}
-                onOpen={() => openWork(work.id)}
+                onOpen={() => openWork(work.id, {
+                  selectedWorkIds: selectedWorkIds.size > 0 ? Array.from(selectedWorkIds) : [work.id],
+                  scrollTop: workGridRef.current?.scrollTop ?? 0,
+                })}
                 tagPaths={tagPathsByName}
               />
             ))}
@@ -6377,6 +6402,7 @@ function CollectionsView({
   openViewer,
   onCollectionsChange,
   onImportToFolder,
+  onBack,
 }: {
   collections: Collection[]
   pages: GalleryPage[]
@@ -6396,6 +6422,7 @@ function CollectionsView({
   openViewer: (page: GalleryPage, pages?: GalleryPage[]) => void
   onCollectionsChange: (next: Collection[]) => void
   onImportToFolder: (folderId: string) => void
+  onBack: () => void
 }) {
   const [selectedFolderId, setSelectedFolderId] = useState('all')
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set())
@@ -6436,7 +6463,7 @@ function CollectionsView({
   const [colorMinRatio, setColorMinRatio] = useState(0.15)
   const [sort] = useState('page-asc')
   const [pageRenderLimit, setPageRenderLimit] = useState(200)
-  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [inspectorOpen, setInspectorOpen] = useState(true)
   useEffect(() => {
     if (initialTagRequest) {
       setSelectedFolderId('all')
@@ -6453,6 +6480,7 @@ function CollectionsView({
   const [folderDropTarget, setFolderDropTarget] = useState<{ id: string; position: 'before' | 'after' | 'inside' } | null>(null)
   const [folderDragPreview, setFolderDragPreview] = useState<{ name: string; x: number; y: number } | null>(null)
   const dragFrameRef = useRef<number | null>(null)
+  const dragHitTestFrameRef = useRef<number | null>(null)
   const dropFlashTimerRef = useRef<number | null>(null)
   const dragPageIdsRef = useRef<Set<string>>(new Set())
   const pointerDragRef = useRef<{
@@ -6592,6 +6620,19 @@ function CollectionsView({
   const selectedWorkFolder = selectedFolderId.startsWith('work:')
     ? works.find((work) => work.id === selectedFolderId.slice(5))
     : undefined
+  const selectedWorkIndex = selectedWorkFolder ? works.findIndex((work) => work.id === selectedWorkFolder.id) : -1
+  const previousWork = selectedWorkIndex > 0 ? works[selectedWorkIndex - 1] : undefined
+  const nextWork = selectedWorkIndex >= 0 && selectedWorkIndex < works.length - 1 ? works[selectedWorkIndex + 1] : undefined
+  const goToWork = (work: Work) => {
+    setSelectedFolderId(`work:${work.id}`)
+    setSelectedPageIds(new Set())
+    setSearch('')
+    setSelectedTags([])
+    setSelectedWorkTagIds([])
+    setUntaggedOnly(false)
+    setSelectedFolderIds(new Set())
+    lastSelectedFolderIdRef.current = null
+  }
   const visiblePages =
     selectedFolderId === 'all'
       ? pages
@@ -6910,6 +6951,10 @@ function CollectionsView({
       cancelAnimationFrame(dragFrameRef.current)
       dragFrameRef.current = null
     }
+    if (dragHitTestFrameRef.current !== null) {
+      cancelAnimationFrame(dragHitTestFrameRef.current)
+      dragHitTestFrameRef.current = null
+    }
     dragPageIdsRef.current = new Set()
     setDragPageIds(new Set())
     setDragOverFolderId(null)
@@ -6922,6 +6967,16 @@ function CollectionsView({
     dragFrameRef.current = requestAnimationFrame(() => {
       dragFrameRef.current = null
       setDragPosition({ x, y })
+    })
+  }
+
+  const updatePageDragTarget = (x: number, y: number) => {
+    if (dragHitTestFrameRef.current !== null) return
+    dragHitTestFrameRef.current = requestAnimationFrame(() => {
+      dragHitTestFrameRef.current = null
+      const target = document.elementFromPoint(x, y) as HTMLElement | null
+      const folderId = target?.closest<HTMLElement>('.folder-row')?.getAttribute('data-folder-id') ?? null
+      setDragOverFolderId((current) => (current === folderId ? current : folderId))
     })
   }
 
@@ -6943,9 +6998,7 @@ function CollectionsView({
     }
     event.preventDefault()
     updatePageDragPosition(event.clientX, event.clientY)
-    const target = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null
-    const folderId = target?.closest<HTMLElement>('.folder-row')?.getAttribute('data-folder-id') ?? null
-    setDragOverFolderId((current) => (current === folderId ? current : folderId))
+    updatePageDragTarget(event.clientX, event.clientY)
   }
 
   const finishPagePointerDrag = (event: globalThis.PointerEvent) => {
@@ -8271,6 +8324,28 @@ function CollectionsView({
       <main className="folder-pages" ref={folderPagesRef}>
         <div className="folder-content-only">
           <div className="folder-content">
+            <div className="folder-toolbar inspiration-toolbar">
+              <button className="ghost-button" onClick={onBack} type="button">
+                <ArrowLeft size={15} />
+                返回作品库
+              </button>
+              {selectedWorkFolder && (
+                <>
+                  <div className="folder-toolbar-title">
+                    <strong>{selectedWorkFolder.title}</strong>
+                    <span>{selectedWorkFolder.pages.length} 页 · {selectedWorkIndex + 1} / {works.length}</span>
+                  </div>
+                  <button className="ghost-button" disabled={!previousWork} onClick={() => previousWork && goToWork(previousWork)} type="button">
+                    <ChevronLeft size={15} />
+                    上一个作品
+                  </button>
+                  <button className="ghost-button" disabled={!nextWork} onClick={() => nextWork && goToWork(nextWork)} type="button">
+                    下一个作品
+                    <ChevronRight size={15} />
+                  </button>
+                </>
+              )}
+            </div>
             <FilterRail
               search={search}
           onSearchChange={setSearch}
@@ -8438,7 +8513,7 @@ function CollectionsView({
 
         </div>
       </main>
-      {inspectorOpen && inspectedPage && (
+      {inspectorOpen && (inspectedPage ? (
         <InspectorPanel
           title={inspectedPage.title}
           preview={inspectedPage}
@@ -8474,7 +8549,12 @@ function CollectionsView({
           }}
           onOpen={() => openViewer(inspectedPage, filteredPages)}
         />
-      )}
+      ) : (
+        <aside className="inspector-empty" style={{ width: '260px' }}>
+          <ImageIcon size={20} />
+          <span>选择图片查看详情</span>
+        </aside>
+      ))}
     </section>
   )
 }
@@ -8724,6 +8804,8 @@ function PageViewer({
   const clampZoom = useCallback((value: number) => setZoom(Math.min(600, Math.max(50, value))), [setZoom])
   const viewerCanvasRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null)
+  const wheelDeltaRef = useRef(0)
+  const wheelLockUntilRef = useRef(0)
   const [panX, setPanX] = useState(0)
   const [panY, setPanY] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -8732,6 +8814,8 @@ function PageViewer({
     setPanX(0)
     setPanY(0)
     setZoom(100)
+    wheelDeltaRef.current = 0
+    wheelLockUntilRef.current = 0
   }, [page.id, setZoom])
 
   useEffect(() => {
@@ -8755,7 +8839,13 @@ function PageViewer({
       const onSlide = Boolean(target?.closest('.viewer-slide'))
       if (!event.ctrlKey && !event.metaKey) {
         if (onSlide && pages.length > 1 && event.deltaY !== 0) {
-          const next = Math.min(pages.length - 1, Math.max(0, pageIndex + (event.deltaY > 0 ? 1 : -1)))
+          wheelDeltaRef.current += event.deltaY
+          const now = performance.now()
+          if (now < wheelLockUntilRef.current || Math.abs(wheelDeltaRef.current) < 40) return
+          const direction = wheelDeltaRef.current > 0 ? 1 : -1
+          wheelDeltaRef.current = 0
+          wheelLockUntilRef.current = now + 180
+          const next = Math.min(pages.length - 1, Math.max(0, pageIndex + direction))
           if (next !== pageIndex) onNavigate(next)
         }
         return
