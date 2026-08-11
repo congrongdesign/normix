@@ -5,6 +5,7 @@
 ### Fixed
 
 - 修正安装包品牌图标，改为软件界面实际使用的 Normix logo
+- Windows 安装包补齐 sharp win32-x64 原生模块，修复启动报错
 - 补齐 GitHub README 下载说明和界面截图
 - 发布脚本支持根据 `package.json` 版本自动创建 Release
 - 发布脚本增加直连失败时的代理回退

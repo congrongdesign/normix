@@ -95,6 +95,8 @@ Normix-1.0.1-win-x64-portable.exe
 
 如果出现 SmartScreen 提示，请选择“更多信息 > 仍要运行”。安装版支持自定义安装目录，并可创建桌面和开始菜单快捷方式。
 
+如果旧版 Windows 安装包启动时提示 `Could not load the "sharp" module`，请重新下载当前 `v1.0.1` 安装包，新版已包含 Windows 原生模块。
+
 ### macOS 提示“已损坏，无法打开”
 
 当前 macOS 安装包未做 Apple Developer 签名，因此从 Chrome 或其他浏览器下载后，系统可能提示“Normix 已损坏，无法打开”。这是 Gatekeeper 隔离标记导致的，不是安装包损坏。
