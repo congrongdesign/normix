@@ -1950,7 +1950,7 @@ const getPdfPageCount = (filePath) =>
     })
   }).catch(() => getPdfPageCountJs(filePath))
 
-const renderPdfRange = (uploadPath, prefix, start, end) =>
+const renderPdfRange = (uploadPath, prefix, start, end, onProgress) =>
   new Promise((resolve, reject) => {
     execFileAsync('pdftoppm', [
       '-jpeg',
@@ -1965,9 +1965,12 @@ const renderPdfRange = (uploadPath, prefix, start, end) =>
       env: { ...process.env, FONTCONFIG_FILE: path.join(__dirname, 'config', 'fonts.conf') },
     }, (error, _stdout, stderr) => {
       if (error) reject(new Error(stderr || error.message))
-      else resolve()
+      else {
+        if (onProgress) onProgress(end - start + 1, end - start + 1)
+        resolve()
+      }
     })
-  }).catch(() => renderPdfRangeJs(uploadPath, prefix, start, end))
+  }).catch(() => renderPdfRangeJs(uploadPath, prefix, start, end, 1920, onProgress))
 
 const processUploadedFile = async (workId, uploadPath, fileName, kind, taskId) => {
   ensureUploadNotCancelled(taskId)
@@ -2027,17 +2030,31 @@ const processUploadedFile = async (workId, uploadPath, fileName, kind, taskId) =
         ranges.push([start, Math.min(pageCount, start + chunkSize - 1)])
       }
       let rangeIndex = 0
+      let renderedPdfPages = 0
+      const onPdfRangeProgress = (delta) => {
+        renderedPdfPages += Math.max(0, delta)
+        const total = pageCount > 0 ? pageCount : Math.max(renderedPdfPages, 1)
+        updateTaskProgress(
+          taskId,
+          Math.min(18, Math.round(8 + (renderedPdfPages / total) * 10)),
+          `渲染 PDF ${renderedPdfPages}/${pageCount || '...'} 页`,
+          renderedPdfPages,
+          total,
+        )
+      }
       const renderWorker = async () => {
         while (rangeIndex < ranges.length) {
           ensureUploadNotCancelled(taskId)
           const [start, end] = ranges[rangeIndex]
           rangeIndex += 1
-          await renderPdfRange(uploadPath, prefix, start, end)
+          await renderPdfRange(uploadPath, prefix, start, end, onPdfRangeProgress)
         }
       }
       await Promise.all(Array.from({ length: Math.min(renderConcurrency, ranges.length) }, () => renderWorker()))
     } else {
-      await renderPdfRange(uploadPath, prefix, 1, 100000)
+      await renderPdfRange(uploadPath, prefix, 1, 100000, () => {
+        updateTaskProgress(taskId, 18, '渲染 PDF', 0, 0)
+      })
     }
     const rendered = fs
       .readdirSync(storageDirs.uploads)
