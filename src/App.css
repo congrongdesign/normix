@@ -4003,6 +4003,7 @@ p {
   top: 0;
   left: 0;
   width: 100%;
+  will-change: transform;
   display: grid;
   grid-template-columns: repeat(var(--virtual-cols), minmax(0, 1fr));
   gap: 12px;

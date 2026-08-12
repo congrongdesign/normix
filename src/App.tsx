@@ -6499,6 +6499,7 @@ function CollectionsView({
   const folderPagesRef = useRef<HTMLElement>(null)
   const folderScrollAreaRef = useRef<HTMLDivElement>(null)
   const pageGridRef = useRef<HTMLDivElement>(null)
+  const layoutFrameRef = useRef<number | null>(null)
   const [pageGridWidth, setPageGridWidth] = useState(600)
   const [pageGridOffset, setPageGridOffset] = useState(0)
 
@@ -6733,14 +6734,24 @@ function CollectionsView({
   useLayoutEffect(() => {
     const scrollArea = folderScrollAreaRef.current
     const measure = () => {
-      if (scrollArea) setPageGridWidth(scrollArea.clientWidth)
-      if (pageGridRef.current) setPageGridOffset(pageGridRef.current.offsetTop)
+      if (layoutFrameRef.current !== null) return
+      layoutFrameRef.current = requestAnimationFrame(() => {
+        layoutFrameRef.current = null
+        if (scrollArea) setPageGridWidth((current) => (current === scrollArea.clientWidth ? current : scrollArea.clientWidth))
+        if (pageGridRef.current) setPageGridOffset(pageGridRef.current.offsetTop)
+      })
     }
     measure()
     if (!scrollArea || typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(measure)
     observer.observe(scrollArea)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      if (layoutFrameRef.current !== null) {
+        cancelAnimationFrame(layoutFrameRef.current)
+        layoutFrameRef.current = null
+      }
+    }
   }, [pageRenderLimit, renderPages.length, selectedFolderId])
 
   const columns = Math.max(1, Math.floor((pageGridWidth - 12) / Math.max(gridCardMin, 1)))
@@ -6753,7 +6764,7 @@ function CollectionsView({
     count: rowCount,
     getScrollElement: () => folderScrollAreaRef.current,
     estimateSize: estimateRowHeight,
-    overscan: 4,
+    overscan: 3,
     scrollMargin: pageGridOffset,
   })
 
