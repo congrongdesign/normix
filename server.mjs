@@ -377,6 +377,29 @@ const recoverInterruptedUploads = () => {
   }
 }
 
+const reconcileCompletedUploadTasks = () => {
+  const rows = db.prepare(`
+    SELECT t.id, t.work_id
+    FROM upload_tasks t
+    WHERE t.status = 'error'
+      AND EXISTS (SELECT 1 FROM pages p WHERE p.work_id = t.work_id)
+  `).all()
+  const updatedAt = new Date().toISOString()
+  for (const row of rows) {
+    const pageCount = db.prepare('SELECT COUNT(*) AS count FROM pages WHERE work_id = ?').get(row.work_id).count
+    if (pageCount > 0) {
+      db.prepare(`
+        UPDATE upload_tasks
+        SET status = 'done', progress = 100, stage = '完成', processed = ?, total = ?, error = NULL, updated_at = ?
+        WHERE id = ?
+      `).run(pageCount, Math.max(1, pageCount), updatedAt, row.id)
+    }
+  }
+  if (rows.length > 0) {
+    console.log(`Reconciled ${rows.length} upload task(s) that already produced pages`)
+  }
+}
+
 const upload = multer({
   storage: {
     _handleFile: async (req, file, cb) => {
@@ -1118,9 +1141,12 @@ app.get('/api/works', (req, res) => {
   const works = db.prepare(`
     SELECT w.*,
       (SELECT COUNT(*) FROM pages p WHERE p.work_id = w.id) AS page_count,
-      EXISTS (
-        SELECT 1 FROM upload_tasks t
-        WHERE t.work_id = w.id AND t.status = 'error'
+      (
+        (SELECT COUNT(*) FROM pages p WHERE p.work_id = w.id) = 0
+        AND EXISTS (
+          SELECT 1 FROM upload_tasks t
+          WHERE t.work_id = w.id AND t.status = 'error'
+        )
       ) AS failed
     FROM works w
     ${where}
@@ -1171,9 +1197,12 @@ app.get('/api/works', (req, res) => {
 app.get('/api/works/:id', (req, res) => {
   const work = db.prepare(`
     SELECT w.*,
-      EXISTS (
-        SELECT 1 FROM upload_tasks t
-        WHERE t.work_id = w.id AND t.status = 'error'
+      (
+        (SELECT COUNT(*) FROM pages p WHERE p.work_id = w.id) = 0
+        AND EXISTS (
+          SELECT 1 FROM upload_tasks t
+          WHERE t.work_id = w.id AND t.status = 'error'
+        )
       ) AS failed
     FROM works w
     WHERE w.id = ?
@@ -2478,6 +2507,7 @@ export const startNormixServer = async ({ host = '127.0.0.1', port = 0 } = {}) =
   const address = server.address()
   const actualPort = typeof address === 'object' && address ? address.port : port
   recoverInterruptedUploads()
+  reconcileCompletedUploadTasks()
   clearSourceStorage()
   setImmediate(runStorageMaintenance)
   setInterval(runStorageMaintenance, 6 * 60 * 60 * 1000).unref()
