@@ -778,25 +778,29 @@ const resolveStoredPath = (filePath) => {
 }
 
 const cleanupUploadedFiles = (uploadPath, workId) => {
-  const uploadRoot = path.resolve(storageDirs.uploads)
-  if (uploadPath) {
-    const resolved = path.resolve(uploadPath)
-    if (resolved.startsWith(`${uploadRoot}${path.sep}`) && fs.existsSync(resolved)) {
-      fs.rmSync(resolved, { force: true })
+  try {
+    const uploadRoot = path.resolve(storageDirs.uploads)
+    if (uploadPath) {
+      const resolved = path.resolve(uploadPath)
+      if (resolved.startsWith(`${uploadRoot}${path.sep}`) && fs.existsSync(resolved)) {
+        fs.rmSync(resolved, { force: true })
+      }
     }
-  }
-  if (!workId) return
-  const prefix = `${workId}-`
-  for (const file of fs.existsSync(uploadRoot) ? fs.readdirSync(uploadRoot) : []) {
-    if (file.startsWith(prefix)) {
-      fs.rmSync(path.join(uploadRoot, file), { force: true })
+    if (!workId) return
+    const prefix = `${workId}-`
+    for (const file of fs.existsSync(uploadRoot) ? fs.readdirSync(uploadRoot) : []) {
+      if (file.startsWith(prefix)) {
+        fs.rmSync(path.join(uploadRoot, file), { force: true })
+      }
     }
-  }
-  const work = db.prepare('SELECT source_path FROM works WHERE id = ?').get(workId)
-  const sourcesRoot = path.resolve(storageDirs.sources)
-  const sourcePath = work?.source_path ? resolveStoredPath(work.source_path) : null
-  if (sourcePath && !sourcePath.startsWith(`${sourcesRoot}${path.sep}`)) {
-    db.prepare('UPDATE works SET source_path = NULL WHERE id = ?').run(workId)
+    const work = db.prepare('SELECT source_path FROM works WHERE id = ?').get(workId)
+    const sourcesRoot = path.resolve(storageDirs.sources)
+    const sourcePath = work?.source_path ? resolveStoredPath(work.source_path) : null
+    if (sourcePath && !sourcePath.startsWith(`${sourcesRoot}${path.sep}`)) {
+      db.prepare('UPDATE works SET source_path = NULL WHERE id = ?').run(workId)
+    }
+  } catch (error) {
+    console.error('Upload cleanup failed (best effort):', error)
   }
 }
 
@@ -2382,14 +2386,26 @@ app.post('/api/uploads', upload.single('file'), async (req, res) => {
       `).run(new Date().toISOString(), taskId)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'upload failed'
-      cleanupUploadedFiles(filePath, workId)
+      try {
+        cleanupUploadedFiles(filePath, workId)
+      } catch {
+        // Cleanup is best-effort and must not mask the real task result.
+      }
       if (cancelledUploadTaskIds.has(taskId)) {
         db.prepare('DELETE FROM upload_tasks WHERE id = ?').run(taskId)
         db.prepare('DELETE FROM works WHERE id = ?').run(workId)
       } else {
-        db.prepare(`
-          UPDATE upload_tasks SET status = 'error', error = ?, stage = '处理失败', updated_at = ? WHERE id = ?
-        `).run(message, new Date().toISOString(), taskId)
+        const pageCount = db.prepare('SELECT COUNT(*) AS count FROM pages WHERE work_id = ?').get(workId).count
+        if (pageCount > 0) {
+          db.prepare(`
+            UPDATE upload_tasks SET status = 'done', progress = 100, stage = '完成', error = NULL, updated_at = ? WHERE id = ?
+          `).run(new Date().toISOString(), taskId)
+          console.error(`Upload task ${taskId} finished with pages but reported an issue: ${message}`)
+        } else {
+          db.prepare(`
+            UPDATE upload_tasks SET status = 'error', error = ?, stage = '处理失败', updated_at = ? WHERE id = ?
+          `).run(message, new Date().toISOString(), taskId)
+        }
       }
     }
   })
