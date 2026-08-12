@@ -6728,8 +6728,14 @@ function CollectionsView({
   const renderPages = filteredPages.slice(0, pageRenderLimit)
 
   useEffect(() => {
-    setPageRenderLimit(200)
+    setPageRenderLimit(150)
   }, [colorMode, layout, rating, search, selectedFolderId, selectedColorFamily, selectedHex, selectedTags, selectedWorkTagNames, untaggedOnly])
+
+  useLayoutEffect(() => {
+    setPageGridWidth(600)
+    setPageGridOffset(0)
+    if (folderScrollAreaRef.current) folderScrollAreaRef.current.scrollTop = 0
+  }, [selectedFolderId])
 
   useLayoutEffect(() => {
     const scrollArea = folderScrollAreaRef.current
@@ -6764,7 +6770,7 @@ function CollectionsView({
     count: rowCount,
     getScrollElement: () => folderScrollAreaRef.current,
     estimateSize: estimateRowHeight,
-    overscan: 3,
+    overscan: 2,
     scrollMargin: pageGridOffset,
   })
 
@@ -6995,7 +7001,7 @@ function CollectionsView({
     const pending = pointerDragRef.current
     if (!pending || event.pointerId !== pending.pointerId) return
     const distance = Math.hypot(event.clientX - pending.startX, event.clientY - pending.startY)
-    if (!pending.moved && distance < 6) return
+    if (!pending.moved && distance < 3) return
     if (!pending.moved) {
       pending.moved = true
       suppressPageClickRef.current = true
