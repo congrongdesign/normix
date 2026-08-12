@@ -10,7 +10,7 @@ Normix 是一个开源的本地 PPT 灵感集管理平台，支持上传 PDF、�
 
 当前版本：`v1.0.2`
 
-- macOS Apple Silicon（arm64）
+- macOS Apple Silicon（M1 / M2 / M3 / M4，arm64）
 - macOS Intel（x64）
 - Windows 10 / 11 x64
 
@@ -57,7 +57,7 @@ Normix 是一个开源的本地 PPT 灵感集管理平台，支持上传 PDF、�
 
 ### macOS
 
-Apple Silicon 用户下载：
+Apple Silicon 用户（M1 / M2 / M3 / M4）下载：
 
 ```text
 Normix-1.0.2-mac-arm64.dmg
