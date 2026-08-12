@@ -8633,9 +8633,11 @@ function WorkCard({
             </button>
           )}
         </div>
-        <div className="work-card-meta">
-          <span>{category || work.industry || work.kind} · {work.pages.length} 页</span>
-        </div>
+        {category && (
+          <div className="work-card-meta">
+            <span>{category}</span>
+          </div>
+        )}
         {(work.tags ?? []).length > 0 && (
           <div className="work-card-tags">
             {(work.tags ?? []).slice(0, 3).map((tag) => {
@@ -8819,6 +8821,20 @@ function PageViewer({
   }, [page.id, setZoom])
 
   useEffect(() => {
+    const preload = (item?: GalleryPage) => {
+      if (!item) return
+      const src = item.previewUrl ?? item.imageUrl
+      if (src) {
+        const image = new Image()
+        image.src = src
+      }
+    }
+    preload(page)
+    preload(pages[pageIndex - 1])
+    preload(pages[pageIndex + 1])
+  }, [page, pageIndex, pages])
+
+  useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.repeat) return
       if (event.code === 'Space' || event.key === 'Escape') {
@@ -8841,10 +8857,10 @@ function PageViewer({
         if (onSlide && pages.length > 1 && event.deltaY !== 0) {
           wheelDeltaRef.current += event.deltaY
           const now = performance.now()
-          if (now < wheelLockUntilRef.current || Math.abs(wheelDeltaRef.current) < 40) return
+          if (now < wheelLockUntilRef.current || Math.abs(wheelDeltaRef.current) < 12) return
           const direction = wheelDeltaRef.current > 0 ? 1 : -1
           wheelDeltaRef.current = 0
-          wheelLockUntilRef.current = now + 180
+          wheelLockUntilRef.current = now + 100
           const next = Math.min(pages.length - 1, Math.max(0, pageIndex + direction))
           if (next !== pageIndex) onNavigate(next)
         }

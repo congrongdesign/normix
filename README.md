@@ -8,7 +8,7 @@ Normix 是一个开源的本地 PPT 灵感集管理平台，支持上传 PDF、�
 
 ## 版本与平台
 
-当前版本：`v1.0.1`
+当前版本：`v1.0.2`
 
 - macOS Apple Silicon（arm64）
 - macOS Intel（x64）
@@ -60,18 +60,18 @@ Normix 是一个开源的本地 PPT 灵感集管理平台，支持上传 PDF、�
 Apple Silicon 用户下载：
 
 ```text
-Normix-1.0.1-mac-arm64.dmg
+Normix-1.0.2-mac-arm64.dmg
 ```
 
-直接下载：[Normix-1.0.1-mac-arm64.dmg](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.1-mac-arm64.dmg)
+直接下载：[Normix-1.0.2-mac-arm64.dmg](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.2-mac-arm64.dmg)
 
 Intel Mac 用户下载：
 
 ```text
-Normix-1.0.1-mac-x64.dmg
+Normix-1.0.2-mac-x64.dmg
 ```
 
-直接下载：[Normix-1.0.1-mac-x64.dmg](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.1-mac-x64.dmg)
+直接下载：[Normix-1.0.2-mac-x64.dmg](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.2-mac-x64.dmg)
 
 安装包未做 Apple 开发者签名，首次打开时请在 Finder 中右键应用，选择“打开”；如仍被阻止，可前往“系统设置 > 隐私与安全性”点击“仍要打开”。
 
@@ -80,22 +80,22 @@ Normix-1.0.1-mac-x64.dmg
 下载安装版：
 
 ```text
-Normix-1.0.1-win-x64-setup.exe
+Normix-1.0.2-win-x64-setup.exe
 ```
 
-直接下载：[Normix-1.0.1-win-x64-setup.exe](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.1-win-x64-setup.exe)
+直接下载：[Normix-1.0.2-win-x64-setup.exe](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.2-win-x64-setup.exe)
 
 或下载免安装便携版：
 
 ```text
-Normix-1.0.1-win-x64-portable.exe
+Normix-1.0.2-win-x64-portable.exe
 ```
 
-直接下载：[Normix-1.0.1-win-x64-portable.exe](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.1-win-x64-portable.exe)
+直接下载：[Normix-1.0.2-win-x64-portable.exe](https://github.com/congrongdesign/normix/releases/latest/download/Normix-1.0.2-win-x64-portable.exe)
 
 如果出现 SmartScreen 提示，请选择“更多信息 > 仍要运行”。安装版支持自定义安装目录，并可创建桌面和开始菜单快捷方式。
 
-如果旧版 Windows 安装包启动时提示 `Could not load the "sharp" module`，请重新下载当前 `v1.0.1` 安装包，新版已包含 Windows 原生模块。
+如果旧版 Windows 安装包启动时提示 `Could not load the "sharp" module`，请重新下载当前 `v1.0.2` 安装包，新版已包含 Windows 原生模块。
 
 ### macOS 提示“已损坏，无法打开”
 

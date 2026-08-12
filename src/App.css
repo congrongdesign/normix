@@ -14796,6 +14796,52 @@ body,
   animation-play-state: paused !important;
 }
 
+.work-card {
+  contain-intrinsic-size: 300px 224px;
+}
+
+.work-card-preview {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+
+.work-card .page-preview {
+  aspect-ratio: auto;
+  height: 100%;
+  border-radius: 0;
+}
+
+.work-card .page-preview.image img {
+  object-fit: cover;
+}
+
+.work-card-caption {
+  min-height: 48px;
+  align-content: start;
+  padding: 12px;
+}
+
+.work-card-caption-head strong {
+  line-height: 1.35;
+}
+
+.work-card.selected {
+  border: 2px solid #111827;
+  box-shadow:
+    0 0 0 4px rgba(17, 24, 39, 0.12),
+    0 18px 38px rgba(15, 23, 42, 0.14);
+  transform: translateY(-2px);
+}
+
+.work-card.selected .selected-check {
+  width: 32px;
+  height: 32px;
+  background: #111827;
+  box-shadow:
+    0 0 0 3px #ffffff,
+    0 0 0 5px rgba(17, 24, 39, 0.35);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
