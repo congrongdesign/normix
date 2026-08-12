@@ -3045,21 +3045,10 @@ p {
   align-content: start;
 }
 
-.load-more-button {
-  min-height: 34px;
-  align-self: center;
-  padding: 0 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--text-strong);
-  background: #ffffff;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.load-more-button:hover {
-  border-color: #18181b;
-  background: #f4f4f5;
+.infinite-scroll-sentinel {
+  height: 1px;
+  min-height: 1px;
+  pointer-events: none;
 }
 
 .folder-zoom-slider {
@@ -3996,6 +3985,13 @@ p {
 .folder-page-grid.virtualized {
   position: relative;
   display: block;
+  transition: opacity 0.08s ease;
+}
+
+.folder-page-grid.simple-grid {
+  flex: none;
+  min-height: 0;
+  overflow: visible;
 }
 
 .virtual-page-row {
@@ -14756,7 +14752,7 @@ html,
 html,
 body,
 #root {
-  background: #f6f7fb !important;
+  background: #ffffff !important;
   filter: none !important;
   opacity: 1 !important;
 }
@@ -14841,6 +14837,53 @@ body,
   box-shadow:
     0 0 0 3px #ffffff,
     0 0 0 5px rgba(17, 24, 39, 0.35);
+}
+
+.inspiration-layout.with-inspector,
+.inspiration-layout.organization-left.with-inspector,
+.inspiration-layout.organization-closed.with-inspector {
+  grid-template-columns: var(--folder-width) minmax(0, 1fr) var(--inspector-width, 260px) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  overflow: hidden !important;
+}
+
+.inspiration-layout.with-inspector .folder-pane,
+.inspiration-layout.organization-left.with-inspector .folder-pane {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.inspiration-layout.with-inspector .folder-pages,
+.inspiration-layout.organization-left.with-inspector .folder-pages {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.inspiration-layout.with-inspector > .inspector-panel,
+.inspiration-layout.with-inspector > .inspector-empty,
+.inspiration-layout.organization-left.with-inspector > .inspector-panel,
+.inspiration-layout.organization-left.with-inspector > .inspector-empty {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: var(--inspector-width, 260px) !important;
+  min-width: 220px !important;
+  max-width: 420px !important;
+  height: 100% !important;
+  max-height: none !important;
+  border: 0 !important;
+  border-left: 1px solid #e5e7eb !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  z-index: auto !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, Menu, shell } from 'electron'
+import { app, BrowserWindow, dialog, Menu, screen, shell } from 'electron'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -12,6 +12,40 @@ if (!gotLock) {
 } else {
   let mainWindow = null
   let normixServer = null
+  let displayRefreshListenersRegistered = false
+  let surfaceRefreshTimer = null
+
+  const refreshWindowSurface = () => {
+    surfaceRefreshTimer = null
+    if (!mainWindow || mainWindow.isDestroyed()) return
+
+    mainWindow.setBackgroundColor('#ffffff')
+    mainWindow.webContents.invalidate()
+
+    if (process.platform === 'darwin' && mainWindow.isVisible()) {
+      const opacity = mainWindow.getOpacity()
+      if (opacity === 1) {
+        mainWindow.setOpacity(0.9999)
+        setTimeout(() => {
+          if (!mainWindow?.isDestroyed()) mainWindow.setOpacity(1)
+        }, 40)
+      }
+    }
+  }
+
+  const scheduleWindowSurfaceRefresh = (delay = 120) => {
+    if (surfaceRefreshTimer !== null) clearTimeout(surfaceRefreshTimer)
+    surfaceRefreshTimer = setTimeout(refreshWindowSurface, delay)
+  }
+
+  const registerDisplayRefreshListeners = () => {
+    if (displayRefreshListenersRegistered) return
+    displayRefreshListenersRegistered = true
+
+    screen.on('display-metrics-changed', () => scheduleWindowSurfaceRefresh(120))
+    screen.on('display-added', () => scheduleWindowSurfaceRefresh(120))
+    screen.on('display-removed', () => scheduleWindowSurfaceRefresh(120))
+  }
 
   const userData = app.getPath('userData')
   process.env.NORMIX_DESKTOP = '1'
@@ -22,6 +56,7 @@ if (!gotLock) {
 
   const createWindow = async () => {
     try {
+      const { width, height } = screen.getPrimaryDisplay().workAreaSize
       if (!normixServer) {
         const serverModule = await import(pathToFileURL(path.join(__dirname, '..', 'server.mjs')).href)
         normixServer = await serverModule.startNormixServer({ host: '127.0.0.1', port: 0 })
@@ -29,24 +64,41 @@ if (!gotLock) {
       }
 
       mainWindow = new BrowserWindow({
-        width: 1440,
-        height: 900,
+        width,
+        height,
         minWidth: 960,
         minHeight: 640,
         title: 'Normix',
         show: false,
         autoHideMenuBar: process.platform === 'win32',
         icon: path.join(__dirname, '..', 'build', 'icon.png'),
-        backgroundColor: '#f6f7fb',
+        backgroundColor: '#ffffff',
         webPreferences: {
           preload: path.join(__dirname, 'preload.cjs'),
           contextIsolation: true,
           nodeIntegration: false,
           sandbox: true,
+          backgroundThrottling: false,
         },
       })
 
-      mainWindow.once('ready-to-show', () => mainWindow?.show())
+      mainWindow.once('ready-to-show', () => {
+        mainWindow?.show()
+        mainWindow?.maximize()
+        scheduleWindowSurfaceRefresh(0)
+        setTimeout(() => scheduleWindowSurfaceRefresh(100), 100)
+        setTimeout(() => scheduleWindowSurfaceRefresh(700), 700)
+      })
+      mainWindow.on('show', () => scheduleWindowSurfaceRefresh(120))
+      mainWindow.on('focus', () => scheduleWindowSurfaceRefresh(0))
+      mainWindow.on('moved', () => scheduleWindowSurfaceRefresh(80))
+      mainWindow.on('resized', () => scheduleWindowSurfaceRefresh(80))
+      mainWindow.on('maximize', () => scheduleWindowSurfaceRefresh(80))
+      mainWindow.on('unmaximize', () => scheduleWindowSurfaceRefresh(80))
+      mainWindow.on('enter-full-screen', () => scheduleWindowSurfaceRefresh(80))
+      mainWindow.on('leave-full-screen', () => scheduleWindowSurfaceRefresh(80))
+
+      registerDisplayRefreshListeners()
 
       mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         if (url.startsWith('http://') || url.startsWith('https://')) void shell.openExternal(url)
@@ -58,6 +110,7 @@ if (!gotLock) {
       })
 
       await mainWindow.loadURL(normixServer.url)
+      scheduleWindowSurfaceRefresh(250)
     } catch (error) {
       console.error('Normix failed to start', error)
       dialog.showErrorBox('Normix 启动失败', error instanceof Error ? error.message : String(error))

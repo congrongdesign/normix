@@ -8,7 +8,6 @@ import type {
   ReactElement,
   WheelEvent,
 } from 'react'
-import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   CheckCircle2,
   CalendarDays,
@@ -827,15 +826,34 @@ const useImageColorProfiles = (sources: Array<{ id: string; url?: string }>) => 
     if (pending.length === 0) return
 
     let active = true
-    pending.forEach(async (source) => {
-      const profile = await analyzeImageColors(source.url as string)
-      if (!active) return
-      cacheRef.current[source.id] = profile
-      setProfiles({ ...cacheRef.current })
+    let cursor = 0
+    let flushTimer: ReturnType<typeof setTimeout> | null = null
+    const flush = () => {
+      flushTimer = null
+      if (active) setProfiles({ ...cacheRef.current })
+    }
+    const scheduleFlush = () => {
+      if (flushTimer !== null) return
+      flushTimer = setTimeout(flush, 30)
+    }
+    const worker = async () => {
+      while (active && cursor < pending.length) {
+        const source = pending[cursor]
+        cursor += 1
+        if (!source.url) continue
+        const profile = await analyzeImageColors(source.url)
+        if (!active) return
+        cacheRef.current[source.id] = profile
+        scheduleFlush()
+      }
+    }
+    Array.from({ length: Math.min(4, pending.length) }, () => {
+      void worker()
     })
 
     return () => {
       active = false
+      if (flushTimer !== null) clearTimeout(flushTimer)
     }
   }, [sources])
 
@@ -1623,6 +1641,12 @@ function App() {
   useEffect(() => {
     localStorage.setItem('normix-sidebar-collapsed', sidebarCollapsed ? '1' : '0')
   }, [sidebarCollapsed])
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      window.dispatchEvent(new Event('resize'))
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [activeView])
   useEffect(() => {
     localStorage.removeItem('normix-upload-history')
   }, [])
@@ -3637,6 +3661,7 @@ function FilterRail({
   onTagToggle,
   tagMode,
   onTagModeChange,
+  onColorFilterOpenChange,
   rating,
   onRatingChange,
 }: {
@@ -3670,6 +3695,7 @@ function FilterRail({
   onTagToggle?: (tag: string) => void
   tagMode?: 'AND' | 'OR'
   onTagModeChange?: (mode: 'AND' | 'OR') => void
+  onColorFilterOpenChange?: (open: boolean) => void
   rating?: number
   onRatingChange?: (value: number) => void
 }) {
@@ -3688,7 +3714,13 @@ function FilterRail({
       <div className="color-filter-anchor">
         <button
           className={hasColorFilter || colorFilterOpen ? 'color-filter-trigger active' : 'color-filter-trigger'}
-          onClick={() => setColorFilterOpen((open) => !open)}
+          onClick={() => {
+            setColorFilterOpen((open) => {
+              const next = !open
+              if (next) onColorFilterOpenChange?.(true)
+              return next
+            })
+          }}
           type="button"
         >
           <Palette size={14} />
@@ -5431,6 +5463,7 @@ function LibraryView({
   const lastSelectedWorkIdRef = useRef<string | null>(null)
   const [inspectorOpen, setInspectorOpen] = useState(true)
   const [inspectorWidth, setInspectorWidth] = useState(defaultInspectorWidth)
+  const [colorProfilesRequested, setColorProfilesRequested] = useState(false)
   const libraryContentRef = useRef<HTMLDivElement>(null)
   const workGridRef = useRef<HTMLDivElement>(null)
 
@@ -5560,9 +5593,12 @@ function LibraryView({
     return map
   }, [workTagTree])
 
+  const hasColorFilter = Boolean(selectedHex || selectedColorFamily || colorMode !== 'all')
   const colorSources = useMemo(
-    () => works.map((work) => ({ id: work.id, url: work.pages[0]?.imageUrl })),
-    [works],
+    () => (hasColorFilter || colorProfilesRequested)
+      ? works.map((work) => ({ id: work.id, url: work.pages[0]?.imageUrl }))
+      : [],
+    [colorProfilesRequested, hasColorFilter, works],
   )
   const workProfileMap = useImageColorProfiles(colorSources)
 
@@ -5631,7 +5667,6 @@ function LibraryView({
     setSelectedTags((current) => (current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag]))
   }
 
-  const hasColorFilter = Boolean(selectedHex || selectedColorFamily || colorMode !== 'all')
   const hasFilters = Boolean(search || selectedTags.length > 0 || kind || dateRange || rating || hasColorFilter)
   const inspectorVisible = inspectorOpen
   const clearFilters = () => {
@@ -5791,6 +5826,7 @@ function LibraryView({
         onTagToggle={toggleTag}
         tagMode={tagMode}
         onTagModeChange={setTagMode}
+        onColorFilterOpenChange={setColorProfilesRequested}
         rating={rating}
         onRatingChange={setRating}
           />
@@ -6464,6 +6500,7 @@ function CollectionsView({
   const [sort] = useState('page-asc')
   const [pageRenderLimit, setPageRenderLimit] = useState(200)
   const [inspectorOpen, setInspectorOpen] = useState(true)
+  const [colorProfilesRequested, setColorProfilesRequested] = useState(false)
   useEffect(() => {
     if (initialTagRequest) {
       setSelectedFolderId('all')
@@ -6489,6 +6526,7 @@ function CollectionsView({
     startX: number
     startY: number
     moved: boolean
+    target: HTMLElement | null
   } | null>(null)
   const suppressPageClickRef = useRef(false)
   const endPageDragRef = useRef<() => void>(() => {})
@@ -6498,10 +6536,8 @@ function CollectionsView({
   const folderDragIdsRef = useRef<Set<string>>(new Set())
   const folderPagesRef = useRef<HTMLElement>(null)
   const folderScrollAreaRef = useRef<HTMLDivElement>(null)
-  const pageGridRef = useRef<HTMLDivElement>(null)
-  const layoutFrameRef = useRef<number | null>(null)
-  const [pageGridWidth, setPageGridWidth] = useState(600)
-  const [pageGridOffset, setPageGridOffset] = useState(0)
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null)
+  const loadMorePendingRef = useRef(false)
 
   useEffect(() => {
     if (initialFolderId) {
@@ -6651,9 +6687,12 @@ function CollectionsView({
   }, [visiblePages])
 
   const layoutOptions = useMemo(() => Array.from(new Set(visiblePages.map((page) => page.layout))).sort(), [visiblePages])
+  const hasColorFilter = Boolean(selectedHex || selectedColorFamily || colorMode !== 'all')
   const colorSources = useMemo(
-    () => visiblePages.filter((page) => page.imageUrl).map((page) => ({ id: page.id, url: page.imageUrl })),
-    [visiblePages],
+    () => (hasColorFilter || colorProfilesRequested)
+      ? visiblePages.filter((page) => page.imageUrl).map((page) => ({ id: page.id, url: page.imageUrl }))
+      : [],
+    [colorProfilesRequested, hasColorFilter, visiblePages],
   )
   const pageProfileMap = useImageColorProfiles(colorSources)
 
@@ -6732,47 +6771,29 @@ function CollectionsView({
   }, [colorMode, layout, rating, search, selectedFolderId, selectedColorFamily, selectedHex, selectedTags, selectedWorkTagNames, untaggedOnly])
 
   useLayoutEffect(() => {
-    setPageGridWidth(600)
-    setPageGridOffset(0)
     if (folderScrollAreaRef.current) folderScrollAreaRef.current.scrollTop = 0
   }, [selectedFolderId])
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const scrollArea = folderScrollAreaRef.current
-    const measure = () => {
-      if (layoutFrameRef.current !== null) return
-      layoutFrameRef.current = requestAnimationFrame(() => {
-        layoutFrameRef.current = null
-        if (scrollArea) setPageGridWidth((current) => (current === scrollArea.clientWidth ? current : scrollArea.clientWidth))
-        if (pageGridRef.current) setPageGridOffset(pageGridRef.current.offsetTop)
-      })
-    }
-    measure()
-    if (!scrollArea || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(measure)
-    observer.observe(scrollArea)
-    return () => {
-      observer.disconnect()
-      if (layoutFrameRef.current !== null) {
-        cancelAnimationFrame(layoutFrameRef.current)
-        layoutFrameRef.current = null
-      }
-    }
-  }, [pageRenderLimit, renderPages.length, selectedFolderId])
+    const sentinel = loadMoreSentinelRef.current
+    if (!scrollArea || !sentinel || filteredPages.length <= renderPages.length) return
 
-  const columns = Math.max(1, Math.floor((pageGridWidth - 12) / Math.max(gridCardMin, 1)))
-  const rowCount = Math.ceil(renderPages.length / columns)
-  const estimateRowHeight = useCallback(
-    () => Math.round((pageGridWidth / Math.max(columns, 1)) * (9 / 16) + 12),
-    [columns, pageGridWidth],
-  )
-  const rowVirtualizer = useVirtualizer({
-    count: rowCount,
-    getScrollElement: () => folderScrollAreaRef.current,
-    estimateSize: estimateRowHeight,
-    overscan: 2,
-    scrollMargin: pageGridOffset,
-  })
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        if (loadMorePendingRef.current) return
+        loadMorePendingRef.current = true
+        setPageRenderLimit((current) => Math.min(filteredPages.length, current + 200))
+        window.setTimeout(() => {
+          loadMorePendingRef.current = false
+        }, 250)
+      },
+      { root: scrollArea, rootMargin: '1000px 0px', threshold: 0 },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [filteredPages.length, renderPages.length])
 
   const selectedPages = pages.filter((page) => selectedPageIds.has(page.id))
   const inspectedPage = selectedPageIds.size === 1 ? pages.find((page) => page.id === Array.from(selectedPageIds)[0]) : undefined
@@ -6811,7 +6832,6 @@ function CollectionsView({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [filteredPages, inspectedPage, openViewer, viewerOpen])
 
-  const hasColorFilter = Boolean(selectedHex || selectedColorFamily || colorMode !== 'all')
   const hasFilters = Boolean(search || selectedTags.length > 0 || selectedWorkTagIds.length > 0 || untaggedOnly || layout || rating || hasColorFilter)
   const clearFilters = () => {
     setSearch('')
@@ -7021,8 +7041,8 @@ function CollectionsView({
   const finishPagePointerDrag = (event: globalThis.PointerEvent) => {
     const pending = pointerDragRef.current
     if (!pending || event.pointerId !== pending.pointerId) return
-    pointerDragRef.current = null
     removePageDragWindowListeners()
+    pointerDragRef.current = null
     if (!pending.moved) return
     const target = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null
     const folderId = target?.closest<HTMLElement>('.folder-row')?.getAttribute('data-folder-id') ?? null
@@ -7059,6 +7079,12 @@ function CollectionsView({
   }
 
   const removePageDragWindowListeners = () => {
+    const target = pointerDragRef.current?.target
+    if (target) {
+      target.removeEventListener('pointermove', handleWindowPagePointerMove)
+      target.removeEventListener('pointerup', handleWindowPagePointerUp)
+      target.removeEventListener('pointercancel', handleWindowPagePointerCancel)
+    }
     window.removeEventListener('pointermove', handleWindowPagePointerMove)
     window.removeEventListener('pointerup', handleWindowPagePointerUp)
     window.removeEventListener('pointercancel', handleWindowPagePointerCancel)
@@ -7076,8 +7102,12 @@ function CollectionsView({
       startX: event.clientX,
       startY: event.clientY,
       moved: false,
+      target: event.currentTarget,
     }
     removePageDragWindowListeners()
+    event.currentTarget.addEventListener('pointermove', handleWindowPagePointerMove)
+    event.currentTarget.addEventListener('pointerup', handleWindowPagePointerUp)
+    event.currentTarget.addEventListener('pointercancel', handleWindowPagePointerCancel)
     window.addEventListener('pointermove', handleWindowPagePointerMove)
     window.addEventListener('pointerup', handleWindowPagePointerUp)
     window.addEventListener('pointercancel', handleWindowPagePointerCancel)
@@ -8392,6 +8422,7 @@ function CollectionsView({
               }
               tagMode={tagMode}
               onTagModeChange={setTagMode}
+              onColorFilterOpenChange={setColorProfilesRequested}
             />
 
             <div className="folder-scroll-area" ref={folderScrollAreaRef}>
@@ -8439,8 +8470,7 @@ function CollectionsView({
               {filteredPages.length > 0 ? (
                 <>
                   <div
-                    ref={pageGridRef}
-                    className="folder-page-grid virtualized"
+                    className="folder-page-grid simple-grid"
                     onMouseDown={(event) => {
                       if (!(event.target as HTMLElement).closest('.page-tile')) {
                         setSelectedPageIds(new Set())
@@ -8455,46 +8485,24 @@ function CollectionsView({
                       }
                     }}
                     style={{
-                      height: `${rowVirtualizer.getTotalSize()}px`,
                       '--folder-card-min': `${gridCardMin}px`,
-                      '--virtual-cols': columns,
-                    } as CSSProperties & Record<'--folder-card-min' | '--virtual-cols', string | number>}
+                    } as CSSProperties & Record<'--folder-card-min', string>}
                   >
-                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                      const rowIndex = virtualRow.index
-                      const rowPages = renderPages.slice(rowIndex * columns, (rowIndex + 1) * columns)
-                      return (
-                        <div
-                          className="virtual-page-row"
-                          key={virtualRow.key}
-                          style={{ transform: `translateY(${virtualRow.start - pageGridOffset}px)` }}
-                        >
-                          {rowPages.map((page) => {
-                            return (
-                              <PageTile
-                                key={page.id}
-                                page={page}
-                                selected={selectedPageIds.has(page.id)}
-                                dragging={dragPageIds.has(page.id)}
-                                onSelect={(event) => toggleSelect(event, page.id)}
-                                onPointerDown={(event) => startPagePointerDrag(event, page.id)}
-                                onOpen={() => openViewer(page, filteredPages)}
-                                onContextMenu={(event) => openPageContextMenu(event, page)}
-                              />
-                            )
-                          })}
-                        </div>
-                      )
-                    })}
+                    {renderPages.map((page) => (
+                      <PageTile
+                        key={page.id}
+                        page={page}
+                        selected={selectedPageIds.has(page.id)}
+                        dragging={dragPageIds.has(page.id)}
+                        onSelect={(event) => toggleSelect(event, page.id)}
+                        onPointerDown={(event) => startPagePointerDrag(event, page.id)}
+                        onOpen={() => openViewer(page, filteredPages)}
+                        onContextMenu={(event) => openPageContextMenu(event, page)}
+                      />
+                    ))}
                   </div>
-                  {filteredPages.length > pageRenderLimit && (
-                    <button
-                      className="load-more-button"
-                      onClick={() => setPageRenderLimit((current) => current + 200)}
-                      type="button"
-                    >
-                      加载更多
-                    </button>
+                  {filteredPages.length > renderPages.length && (
+                    <div ref={loadMoreSentinelRef} className="infinite-scroll-sentinel" aria-hidden="true" />
                   )}
                 </>
               ) : visiblePages.length === 0 ? (
